@@ -1,0 +1,217 @@
+﻿<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Silo 18</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --amber: #e2b567;
+        --amber-dim: rgba(226, 181, 103, 0.5);
+        --ink: #e4dfd2;
+        --dim: #8e948f;
+        --teal: #7fb0a0;
+        --bg: rgba(10, 13, 14, 0.8);
+        --crt: #7dffb0;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: #050607; overflow: hidden; color: var(--ink); font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+      canvas#view { display: block; width: 100vw; height: 100vh; }
+      .hidden { display: none !important; }
+
+      #hud { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+      /* visière du casque : bord sombre du hublot, reflets sur la vitre bombée */
+      #visor { position: fixed; inset: 0; z-index: 2; pointer-events: none; box-shadow: inset 0 0 120px 36px rgba(0, 0, 0, 0.8); background:
+        radial-gradient(ellipse closest-side at 50% 50%, transparent 76%, rgba(4, 6, 6, 0.5) 90%, rgba(0, 0, 0, 0.93) 100%),
+        linear-gradient(112deg, transparent 16%, rgba(210, 225, 230, 0.07) 21%, transparent 28%, transparent 62%, rgba(210, 225, 230, 0.05) 65%, transparent 69%); }
+      #topleft { position: absolute; top: 18px; left: 22px; text-shadow: 0 0 8px rgba(0, 0, 0, 0.9); }
+      #lvl { display: flex; align-items: baseline; gap: 10px; }
+      #lvl .k { font-family: 'Oswald', sans-serif; font-weight: 300; font-size: 12px; letter-spacing: 0.3em; color: var(--dim); }
+      #lvl .n { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 44px; line-height: 1; color: var(--amber); }
+      #lvl .z { font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 0.22em; color: var(--ink); }
+      #title { font-size: 12px; margin-top: 4px; letter-spacing: 0.06em; color: var(--ink); }
+      #zone { font-size: 12px; margin-top: 3px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--amber); }
+      #mode { font-size: 11px; color: var(--dim); margin-top: 3px; letter-spacing: 0.14em; }
+      #clock { font-size: 11px; color: var(--dim); margin-top: 3px; letter-spacing: 0.1em; }
+      #cross { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: rgba(228, 223, 210, 0.7); }
+      #prompt { position: absolute; left: 50%; bottom: 20%; transform: translateX(-50%); padding: 8px 16px; background: var(--bg); border: 1px solid var(--amber-dim); color: var(--amber); font-size: 14px; letter-spacing: 0.04em; }
+      #prompt:empty { display: none; }
+      #prompt b { color: #fff; }
+      #help { position: absolute; left: 22px; bottom: 18px; font-size: 12px; color: var(--dim); line-height: 1.65; background: rgba(8, 10, 11, 0.55); padding: 8px 12px; border-left: 2px solid var(--amber); }
+      #help b { color: var(--ink); font-weight: 600; }
+      #fps { position: absolute; right: 16px; top: 14px; font-size: 11px; color: var(--dim); }
+      #toast { position: absolute; left: 50%; top: 15%; transform: translateX(-50%); font-family: 'Oswald', sans-serif; letter-spacing: 0.26em; font-size: 17px; color: var(--ink); text-shadow: 0 0 14px rgba(226, 181, 103, 0.7); opacity: 0; transition: opacity 0.8s; text-align: center; white-space: nowrap; }
+      #toast.on { opacity: 1; }
+      #suit { position: absolute; right: 22px; bottom: 22px; font-size: 12px; color: var(--crt); background: rgba(0, 20, 10, 0.6); border: 1px solid rgba(125, 255, 176, 0.4); padding: 8px 12px; letter-spacing: 0.1em; }
+
+      #dests { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 420px; max-height: 80vh; overflow-y: auto; background: rgba(10, 13, 14, 0.95); border: 1px solid var(--amber-dim); padding: 12px 14px; }
+      #dests h3 { margin: 0 0 8px; font-family: 'Oswald', sans-serif; font-size: 14px; letter-spacing: 0.2em; color: var(--amber); font-weight: 500; }
+      #dests button { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--ink); font-family: inherit; font-size: 13px; padding: 4px 6px; cursor: pointer; }
+      #dests button:hover { background: rgba(226, 181, 103, 0.14); color: #fff; }
+      #dests button span { color: var(--dim); margin-right: 8px; display: inline-block; min-width: 34px; }
+      #dests .hint { margin-top: 8px; font-size: 11px; color: var(--dim); }
+
+      #menu { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, rgba(20, 26, 28, 0.55), rgba(3, 4, 5, 0.92)); }
+      #menu .panel { width: min(620px, 94vw); max-height: 94vh; overflow-y: auto; padding: 28px 32px; background: rgba(10, 13, 14, 0.88); border: 1px solid var(--amber-dim); box-shadow: 0 0 60px rgba(0, 0, 0, 0.6), inset 0 0 40px rgba(226, 181, 103, 0.04); }
+      #menu h1 { margin: 0; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: clamp(34px, 6vw, 56px); letter-spacing: 0.22em; color: var(--ink); }
+      #menu h1 em { font-style: normal; color: var(--amber); }
+      #menu h2 { margin: 2px 0 18px; font-family: 'Oswald', sans-serif; font-weight: 300; font-size: 13px; letter-spacing: 0.36em; color: var(--amber); }
+      #menu .lore { font-size: 12.5px; color: var(--dim); line-height: 1.65; margin-bottom: 16px; }
+      #menu .keys { display: grid; grid-template-columns: auto 1fr; gap: 3px 16px; font-size: 12.5px; color: var(--dim); margin-bottom: 18px; }
+      #menu .keys b { color: var(--ink); font-weight: 600; }
+      #menu button { font-family: 'Oswald', sans-serif; letter-spacing: 0.2em; font-size: 15px; padding: 11px 22px; color: #111; background: var(--amber); border: 1px solid var(--amber); cursor: pointer; }
+      #menu button:hover { box-shadow: 0 0 22px rgba(226, 181, 103, 0.45); }
+      #menu button:disabled { opacity: 0.45; cursor: wait; }
+      #menu button.ghost { background: transparent; color: var(--amber); font-size: 13px; padding: 10px 16px; }
+      #menu .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+      #menu label { font-size: 12.5px; color: var(--dim); display: flex; gap: 6px; align-items: center; cursor: pointer; }
+      #menu input[type='range'] { width: 110px; accent-color: var(--amber); }
+      #menu .val { min-width: 30px; color: var(--ink); font-variant-numeric: tabular-nums; }
+      #menu select { font-family: inherit; background: rgba(0, 0, 0, 0.4); color: var(--ink); border: 1px solid var(--amber-dim); padding: 5px; }
+      #menu .opts { border-top: 1px solid rgba(255, 255, 255, 0.08); margin-top: 18px; padding-top: 6px; }
+      #status { font-size: 12px; color: var(--amber); margin-top: 12px; min-height: 16px; }
+
+      /* ---- vue d'ensemble ---- */
+      #ov { position: fixed; inset: 0; pointer-events: none; }
+      #ov .left { position: absolute; left: 20px; top: 18px; pointer-events: auto; }
+      #ov .left h1 { margin: 0; font-family: 'Oswald', sans-serif; font-weight: 700; letter-spacing: 0.24em; font-size: 26px; }
+      #ov .left h1 em { font-style: normal; color: var(--amber); }
+      #ov .left p { margin: 4px 0 0; font-size: 12px; color: var(--dim); max-width: 360px; line-height: 1.5; }
+      #ov .legend { margin-top: 10px; display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; }
+      #ov .legend span { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+      #ov .legend i { width: 18px; height: 8px; display: inline-block; }
+      #ov .list { position: absolute; right: 0; top: 0; bottom: 0; width: 330px; background: rgba(6, 9, 10, 0.9); border-left: 1px solid rgba(125, 255, 176, 0.18); overflow-y: auto; pointer-events: auto; font-size: 12px; }
+      #ov .list .sec { position: sticky; top: 0; background: rgba(6, 9, 10, 0.97); padding: 8px 12px 6px; font-family: 'Oswald', sans-serif; letter-spacing: 0.2em; font-size: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); z-index: 1; }
+      #ov .list .it { display: flex; gap: 10px; align-items: baseline; padding: 3px 12px; cursor: pointer; border-left: 3px solid transparent; }
+      #ov .list .it:hover, #ov .list .it.on { background: rgba(125, 255, 176, 0.08); }
+      #ov .list .it.on { border-left-color: var(--crt); }
+      #ov .list .it b { font-family: 'Oswald', sans-serif; font-weight: 500; min-width: 30px; text-align: right; color: var(--dim); }
+      #ov .list .it.canon b { color: var(--amber); }
+      #ov .list .it span { color: var(--ink); }
+      #ov .list .it small { color: var(--dim); margin-left: auto; font-size: 10px; }
+      #ov .card { position: absolute; left: 20px; bottom: 20px; width: min(520px, calc(100vw - 390px)); background: rgba(6, 9, 10, 0.92); border: 1px solid rgba(125, 255, 176, 0.3); padding: 14px 16px; pointer-events: auto; box-shadow: 0 0 30px rgba(0, 0, 0, 0.5); }
+      #ov .card h2 { margin: 0; font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 20px; letter-spacing: 0.08em; }
+      #ov .card h2 b { color: var(--amber); margin-right: 8px; }
+      #ov .card .meta { font-size: 11px; letter-spacing: 0.14em; margin: 4px 0 8px; color: var(--dim); text-transform: uppercase; }
+      #ov .card p { font-size: 12.5px; line-height: 1.6; margin: 6px 0; color: var(--ink); }
+      #ov .card p.s3 { color: var(--crt); }
+      #ov .card ul { margin: 6px 0; padding-left: 16px; font-size: 12px; line-height: 1.55; }
+      #ov .card ul li small { color: var(--dim); }
+      #ov .card .tag { display: inline-block; font-size: 10px; padding: 1px 6px; margin-left: 6px; border: 1px solid; border-radius: 2px; letter-spacing: 0.08em; }
+      #ov .card .tag.c { color: var(--amber); border-color: var(--amber-dim); }
+      #ov .card .tag.h { color: var(--dim); border-color: rgba(255, 255, 255, 0.2); }
+      #ov .card .go { margin-top: 8px; font-family: 'Oswald', sans-serif; letter-spacing: 0.18em; font-size: 13px; padding: 7px 14px; color: #111; background: var(--amber); border: none; cursor: pointer; }
+      #ov .hint { position: absolute; left: 50%; transform: translateX(-50%); top: 14px; font-size: 11px; color: var(--dim); background: rgba(6, 9, 10, 0.7); padding: 4px 10px; }
+      #ov .tip { position: absolute; font-size: 11.5px; background: rgba(6, 9, 10, 0.9); border: 1px solid rgba(125, 255, 176, 0.3); padding: 3px 8px; pointer-events: none; white-space: nowrap; }
+      @media (max-width: 760px) {
+        #ov .list { width: 46vw; }
+        #ov .card { width: calc(54vw - 30px); }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="visor" class="hidden"></div>
+    <div id="hud" class="hidden">
+      <div id="topleft">
+        <div id="lvl"><span class="k">NIVEAU</span><span class="n" id="lvlN">1</span><span class="z" id="lvlZ">UP TOP</span></div>
+        <div id="title"></div>
+        <div id="zone"></div>
+        <div id="mode">À PIED</div>
+        <div id="clock"></div>
+      </div>
+      <div id="cross"></div>
+      <div id="prompt"></div>
+      <div id="help">
+        <b>ZQSD / WASD</b> marcher · <b>Maj</b> courir · <b>Espace</b> sauter · <b>F</b> vol libre (<b>C</b> descendre)<br />
+        <b>Tab</b> vue d'ensemble · <b>M</b> lieux · <b>E</b> interagir · <b>N</b> jour / nuit · <b>H</b> masquer l'aide · <b>Échap</b> menu
+      </div>
+      <div id="suit" class="hidden"></div>
+      <div id="fps"></div>
+      <div id="toast"></div>
+    </div>
+    <div id="dests" class="hidden"></div>
+    <div id="ov" class="hidden">
+      <div class="left">
+        <h1>SILO <em>18</em></h1>
+        <p>Vue en coupe · 144 niveaux reliés par un seul escalier. Faites glisser pour tourner, molette pour zoomer, cliquez un niveau pour sa fiche.</p>
+        <div class="legend" id="ovLegend"></div>
+      </div>
+      <div class="hint">Tab ou Échap : revenir à la visite</div>
+      <div class="list" id="ovList"></div>
+      <div class="card hidden" id="ovCard"></div>
+      <div class="tip hidden" id="ovTip"></div>
+    </div>
+    <div id="menu">
+      <div class="panel">
+        <h1>SILO <em>18</em></h1>
+        <h2>144 NIVEAUX · 10 112 HABITANTS · UN SEUL ESCALIER</h2>
+        <div class="lore">Personne ne sait qui l'a construit ni pourquoi. Le Pacte interdit les ascenseurs, les reliques et les questions ; l'escalier en spirale relie le Haut, les Mids et les Profondeurs de Mechanical. Là-haut, un écran montre le monde mort du dehors. On n'en revient pas.</div>
+        <div class="keys">
+          <b>ZQSD / WASD</b><span>se déplacer (Maj pour courir), souris pour regarder</span>
+          <b>Tab</b><span>vue d'ensemble en coupe, fiche de chaque niveau</span>
+          <b>M</b><span>lieux notables des niveaux chargés</span>
+          <b>F</b><span>vol libre dans le puits (Espace monter · C descendre · Maj vite)</span>
+          <b>E</b><span>interagir (sas, capteur, portes…)</span>
+          <b>N</b><span>alterner le jour et la nuit du silo</span>
+        </div>
+        <div class="row" style="margin-top:0">
+          <button id="play" disabled>CHARGEMENT…</button>
+          <button id="ovBtn" class="ghost" disabled>VUE D'ENSEMBLE</button>
+        </div>
+        <div id="status"></div>
+        <div class="opts">
+          <div class="row">
+            <label>Époque
+              <select id="optEra">
+                <option value="s1">Saison 1 · an 143</option>
+                <option value="s3">Saison 3 · an 144, après la rébellion</option>
+              </select>
+            </label>
+            <label>Départ
+              <select id="optStart">
+                <option value="12">Niveau 12 · le Haut</option>
+                <option value="1">Niveau 1 · cafétéria</option>
+                <option value="62">Niveau 62 · Mids</option>
+                <option value="80">Niveau 80 · fermes</option>
+                <option value="140">Niveau 140 · Mechanical</option>
+                <option value="144">Niveau 144 · le fond</option>
+              </select>
+            </label>
+          </div>
+          <div class="row">
+            <label><input id="optBloom" type="checkbox" checked /> Halo</label>
+            <label><input id="optAO" type="checkbox" checked /> Occlusion</label>
+            <label><input id="optVox" type="checkbox" checked /> Annonces</label>
+            <label>Détail
+              <select id="optNear" title="Niveaux construits en détail autour de vous ; les autres sont simplifiés">
+                <option value="2">±2 niveaux</option>
+                <option value="3" selected>±3 niveaux</option>
+                <option value="4">±4 niveaux</option>
+              </select>
+            </label>
+            <label>Résolution
+              <select id="optRes">
+                <option value="1.5">Haute</option>
+                <option value="1" selected>Normale</option>
+                <option value="0.75">Performance</option>
+              </select>
+            </label>
+          </div>
+          <div class="row">
+            <label>Sensibilité <input id="optSens" type="range" min="0.3" max="2.5" step="0.05" value="1.1" /></label>
+            <label>Luminosité <input id="optLum" type="range" min="0.7" max="2" step="0.05" value="1.2" /></label>
+            <label>Champ de vision <input id="optFov" type="range" min="60" max="100" step="1" value="76" /></label>
+          </div>
+          <div class="row">
+            <label>Gamma <input id="optGamma" type="range" min="0.6" max="1.8" step="0.02" value="1" title="Double-clic : valeur par défaut" /> <span id="optGammaV" class="val">1,00</span></label>
+            <label>Volume <input id="optVol" type="range" min="0" max="1.5" step="0.05" value="0.8" /></label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
