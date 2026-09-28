@@ -4,6 +4,8 @@ Balade en 3D voxel dans le Silo 18 de la série *Silo* (Apple TV+) : 144 niveaux
 du dôme du niveau 1 jusqu'à la salle du générateur et la cavité du forage. Three.js + TypeScript + Vite,
 moteur repris de Cité-ruche (voxels de 0,1 m).
 
+**Jouer en ligne : https://gandalflaigri.github.io/silo-18/** (publié par GitHub Actions à chaque push sur `main`).
+
 ```bash
 npm install
 npm run dev      # http://localhost:5173
